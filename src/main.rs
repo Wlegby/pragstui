@@ -11,6 +11,7 @@ fn main() -> io::Result<()> {
     let mut terminal = ratatui::init();
     let mut app = App::default();
     app.get_projects(starting_path);
+    app.set_mode("projects");
 
     let _ = app.run(&mut terminal);
     ratatui::restore();

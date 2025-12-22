@@ -26,7 +26,7 @@ use ratatui::{
     text::{Line, Text},
     widgets::{
         Block, BorderType, List, ListDirection, ListItem, ListState, Paragraph, Scrollbar,
-        ScrollbarOrientation, ScrollbarState, Widget,
+        ScrollbarOrientation, ScrollbarState, Widget, Wrap,
     },
 };
 
@@ -34,6 +34,8 @@ use crate::prags::Project;
 
 #[derive(Debug, Default)]
 pub struct App {
+    controls: String,
+
     projects: Vec<Project>,
     tags: Vec<(String, bool)>,
 
@@ -135,17 +137,48 @@ impl App {
         }
     }
 
+    pub fn set_mode(&mut self, mode: &str) {
+        match mode {
+            "editing" => self.controls = String::from("Escape/Enter: exit typing"),
+            "projects" => {
+                self.controls = String::from(
+                    "j: down -- k: up -- Space/Enter: select & open zed -- q: exit -- c: clear -- l: goto tags",
+                )
+            }
+            "tags" => {
+                self.controls = String::from(
+                    "j: down -- k: up -- Space: Toggle tag -- q: exit -- c: clear -- l: goto projects",
+                )
+            }
+            _ => {}
+        }
+    }
+
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match self.input.mode {
-            InputMode::Editing => match key_event.code {
-                KeyCode::Esc => self.input.mode = InputMode::Normal,
-                KeyCode::Char(c) => self.input.enter_char(c),
-                KeyCode::Backspace => self.input.delete_char(),
-                KeyCode::Right => self.input.move_cursor_right(),
-                KeyCode::Left => self.input.move_cursor_left(),
-                KeyCode::Enter => self.input.mode = InputMode::Normal,
-                _ => {}
-            },
+            InputMode::Editing => {
+                match key_event.code {
+                    KeyCode::Esc => {
+                        self.input.mode = InputMode::Normal;
+                        self.set_mode(match self.selected {
+                            Select::Projects => "projects",
+                            Select::Tags => "tags",
+                        });
+                    }
+                    KeyCode::Enter => {
+                        self.input.mode = InputMode::Normal;
+                        self.set_mode(match self.selected {
+                            Select::Projects => "projects",
+                            Select::Tags => "tags",
+                        });
+                    }
+                    KeyCode::Char(c) => self.input.enter_char(c),
+                    KeyCode::Backspace => self.input.delete_char(),
+                    KeyCode::Right => self.input.move_cursor_right(),
+                    KeyCode::Left => self.input.move_cursor_left(),
+                    _ => {}
+                };
+            }
             InputMode::Normal => {
                 match self.selected {
                     Select::Projects => match key_event.code {
@@ -172,7 +205,10 @@ impl App {
                 }
 
                 match key_event.code {
-                    KeyCode::Char('i') => self.input.mode = InputMode::Editing,
+                    KeyCode::Char('i') => {
+                        self.input.mode = InputMode::Editing;
+                        self.set_mode("editing");
+                    }
                     KeyCode::Char('q') => self.exit(),
                     KeyCode::Char('c') => {
                         for t in &mut self.tags {
@@ -180,8 +216,16 @@ impl App {
                         }
                         self.input.clear();
                     }
-                    KeyCode::Char('h') => self.selected = Select::Projects,
-                    KeyCode::Char('l') => self.selected = Select::Tags,
+                    KeyCode::Char('h') => {
+                        self.selected = Select::Projects;
+                        self.set_mode("projects");
+                    }
+
+                    KeyCode::Char('l') => {
+                        self.selected = Select::Tags;
+                        self.set_mode("tags");
+                    }
+
                     _ => {}
                 }
             }
@@ -207,25 +251,40 @@ impl App {
     }
 
     fn render_window(&mut self, frame: &mut Frame) {
-        let layout = Layout::default()
+        let center = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
-                Constraint::Fill(1),
-                Constraint::Percentage(60),
-                Constraint::Percentage(20),
-                Constraint::Fill(1),
+                Constraint::Percentage(10),
+                Constraint::Min(0),
+                Constraint::Percentage(10),
             ])
             .split(frame.area());
+
+        let main = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Min(0), Constraint::Max(2)])
+            .split(center[1]);
+
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(70), Constraint::Percentage(30)])
+            .split(main[0]);
 
         let left = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(3), Constraint::Min(0)])
-            .split(layout[1]);
+            .split(layout[0]);
+
+        frame.render_widget(
+            Paragraph::new(Line::from(self.controls.clone()).left_aligned()),
+            main[1],
+        );
 
         frame.render_widget(
             Paragraph::new(vec![
                 Line::from(format!(" {}", self.input.text.clone())).left_aligned(),
             ])
+            .wrap(Wrap { trim: true })
             .block(
                 Block::bordered()
                     .border_type(BorderType::Rounded)
@@ -242,7 +301,7 @@ impl App {
         #[allow(clippy::cast_possible_truncation)]
         if self.input.mode == InputMode::Editing {
             frame.set_cursor_position(Position::new(
-                left[0].positions().nth(0).unwrap().x + self.input.char_idx as u16 + 2,
+                left[0].positions().nth(0).unwrap().x + self.input.char_idx as u16 + 1,
                 left[0].positions().nth(0).unwrap().y + 1,
             ));
         }
@@ -338,13 +397,13 @@ impl App {
                 .repeat_highlight_symbol(true)
                 .direction(ListDirection::TopToBottom)
                 .scroll_padding(5),
-            layout[2],
+            layout[1],
             &mut self.tags_list_state,
         );
 
         frame.render_stateful_widget(
             Scrollbar::new(ScrollbarOrientation::VerticalRight),
-            layout[2].inner(Margin {
+            layout[1].inner(Margin {
                 vertical: 1,
                 horizontal: 0,
             }),
