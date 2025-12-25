@@ -133,6 +133,8 @@ impl App {
 
             Command::new("zeditor").arg(path.parent().unwrap()).spawn();
 
+            println!("{}", path.parent().unwrap().to_str().unwrap());
+
             self.exit();
         }
     }
