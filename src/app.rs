@@ -345,7 +345,17 @@ impl App {
                         }
                     }
                     if contains_tag {
-                        matches.push(p.name.clone())
+                        matches.push(format!(
+                            "{}  --  ({})",
+                            p.name.clone(),
+                            PathBuf::from(p.path.clone())
+                                .parent()
+                                .unwrap()
+                                .file_name()
+                                .unwrap()
+                                .to_str()
+                                .unwrap(),
+                        ))
                     }
                 }
             });
