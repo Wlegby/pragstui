@@ -321,7 +321,17 @@ impl App {
         if selected_tags.is_empty() {
             self.projects.iter().for_each(|p| {
                 if p.name.contains(&self.input.text) {
-                    matches.push(p.name.clone())
+                    matches.push(format!(
+                        "{}  --  ({})",
+                        p.name.clone(),
+                        PathBuf::from(p.path.clone())
+                            .parent()
+                            .unwrap()
+                            .file_name()
+                            .unwrap()
+                            .to_str()
+                            .unwrap(),
+                    ))
                 }
             });
         } else {
