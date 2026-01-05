@@ -131,9 +131,9 @@ impl App {
             let toml_path = matches[s].path.clone();
             let path = PathBuf::from(toml_path);
 
-            Command::new("zeditor").arg(path.parent().unwrap()).spawn();
-
             println!("{}", path.parent().unwrap().to_str().unwrap());
+
+            Command::new("zeditor").arg(path.parent().unwrap()).spawn();
 
             self.exit();
         }
